@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Singularity Arcade — Vault Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;800&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Share Tech Mono', monospace; background: #05070d; color: #e5f6ff; }
+    .orbitron { font-family: 'Orbitron', sans-serif; }
+    .grid-bg { background-image: linear-gradient(rgba(0,220,255,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(0,220,255,.06) 1px, transparent 1px); background-size: 32px 32px; }
+    .glass { background: rgba(8,15,28,.86); border: 1px solid rgba(56,189,248,.28); box-shadow: 0 0 40px rgba(0,180,255,.08); backdrop-filter: blur(12px); }
+  </style>
+</head>
+<body class="min-h-screen grid-bg">
+  <main class="min-h-screen flex items-center justify-center p-6">
+    <section class="glass rounded-2xl w-full max-w-xl p-7 md:p-10">
+      <div class="text-center mb-8">
+        <div class="text-cyan-300 text-xs tracking-[.4em] mb-3">SINGULARITY ARCADE</div>
+        <h1 class="orbitron text-3xl md:text-4xl font-bold text-white">QUANTUM VAULT</h1>
+        <p class="text-slate-400 mt-3">Dein Spielstand liegt serverseitig in deinem eigenen Account-Vault.</p>
+      </div>
+
+      <div class="flex gap-2 mb-6">
+        <button id="loginTab" class="flex-1 rounded-lg px-4 py-3 bg-cyan-500/20 border border-cyan-400/40 text-cyan-200">Einloggen</button>
+        <button id="registerTab" class="flex-1 rounded-lg px-4 py-3 bg-slate-900 border border-slate-700 text-slate-400">Account erstellen</button>
+      </div>
+
+      <form id="authForm" class="space-y-5">
+        <div>
+          <label for="handle" class="block text-sm text-slate-400 mb-2">Accountname</label>
+          <input id="handle" name="handle" autocomplete="username" required minlength="3" maxlength="24" pattern="[A-Za-z0-9_]{3,24}"
+            class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-3 outline-none focus:border-cyan-400" placeholder="Jack_Node_01">
+        </div>
+        <div>
+          <label for="password" class="block text-sm text-slate-400 mb-2">Passwort</label>
+          <input id="password" name="password" type="password" autocomplete="current-password" required minlength="10" maxlength="200"
+            class="w-full rounded-lg bg-slate-950 border border-slate-700 px-4 py-3 outline-none focus:border-cyan-400" placeholder="Mindestens 10 Zeichen">
+        </div>
+        <button id="submitButton" class="w-full rounded-lg bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold py-3 transition">VAULT ÖFFNEN</button>
+      </form>
+
+      <div id="message" class="hidden mt-5 rounded-lg border px-4 py-3 text-sm"></div>
+      <div class="mt-7 text-xs text-slate-500 leading-relaxed">
+        Dein Spielstand wird nicht im Browser-LocalStorage gespeichert. Nach dem Login kannst du denselben Account auf einem anderen Gerät verwenden und deinen Vault wieder laden.
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/js/auth.js"></script>
+</body>
+</html>

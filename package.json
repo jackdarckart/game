@@ -1,0 +1,14 @@
+{
+  "name": "singularity-arcade",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Standalone Singularity Arcade with account-bound server-side Vault storage.",
+  "type": "module",
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "scripts": {
+    "start": "node server/server.js",
+    "check": "node --check server/server.js && node --check server/auth.js && node --check server/vault.js && node --check public/js/auth.js && node --check public/js/core/events.js && node --check public/js/core/engine.js && node --check public/js/core/renderer.js && node --check public/js/core/storage.js && node --check public/js/modules/vibe.js && node --check public/js/modules/mining.js && node --check public/js/modules/tree.js && node --check public/js/modules/jukebox.js && node --check public/js/modules/leaderboard.js"
+  }
+}
