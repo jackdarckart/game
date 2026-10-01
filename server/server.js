@@ -8,6 +8,7 @@ import {
   getSessionUserId,
   makeSessionCookie,
   newUser,
+  parseCookies,
   rateLimitLogin,
   revokeSession,
   validateHandle,
@@ -43,7 +44,7 @@ const MIME_TYPES = {
 };
 
 function ensureDataDir() {
-  mkdirSync(DATA_DIR, { recursive: true });
+  mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 }
 
 function loadUsers() {
@@ -80,7 +81,7 @@ function findUserById(id) {
 }
 
 function getClientIp(req) {
-  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown').split(',')[0].trim();
+  return req.socket.remoteAddress || 'unknown';
 }
 
 function sendJson(res, status, payload, headers = {}) {
@@ -124,6 +125,7 @@ function originIsAllowed(req) {
 async function readBody(req) {
   const contentLength = Number(req.headers['content-length'] || 0);
   if (contentLength > MAX_BODY_BYTES) throw new Error('REQUEST_TOO_LARGE');
+  if (!/^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '')) throw new Error('INVALID_JSON');
   const chunks = [];
   let total = 0;
   for await (const chunk of req) {
@@ -134,7 +136,9 @@ async function readBody(req) {
   const text = Buffer.concat(chunks).toString('utf8');
   if (!text) return {};
   try {
-    return JSON.parse(text);
+    const parsed = JSON.parse(text);
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('INVALID_JSON');
+    return parsed;
   } catch {
     throw new Error('INVALID_JSON');
   }
@@ -160,10 +164,59 @@ function sanitizeGameState(input, handle) {
   }
   const jsonSize = Buffer.byteLength(JSON.stringify(input), 'utf8');
   if (jsonSize > 200 * 1024) throw new Error('STATE_TOO_LARGE');
+  const validateJson = (value, depth = 0) => {
+    if (depth > 32) throw new Error('INVALID_STATE');
+    if (typeof value === 'number' && !Number.isFinite(value)) throw new Error('INVALID_STATE');
+    if (typeof value === 'string' && value.length > 10000) throw new Error('INVALID_STATE');
+    if (Array.isArray(value)) {
+      if (value.length > 10000) throw new Error('INVALID_STATE');
+      for (const item of value) validateJson(item, depth + 1);
+    } else if (value && typeof value === 'object') {
+      for (const [key, item] of Object.entries(value)) {
+        if (['__proto__', 'constructor', 'prototype'].includes(key)) throw new Error('INVALID_STATE');
+        validateJson(item, depth + 1);
+      }
+    } else if (value !== null && !['string', 'number', 'boolean'].includes(typeof value)) {
+      throw new Error('INVALID_STATE');
+    }
+  };
+  const isRecord = value => value && typeof value === 'object' && !Array.isArray(value);
   const clone = structuredClone(input);
-  clone.version = 1;
-  clone.handle = handle;
-  return clone;
+  validateJson(clone);
+  if (clone.version !== undefined && (!Number.isInteger(clone.version) || clone.version < 0 || clone.version > 1)) {
+    throw new Error('INVALID_STATE');
+  }
+  for (const key of ['upgrades', 'jukebox', 'stats']) {
+    if (clone[key] !== undefined && !isRecord(clone[key])) throw new Error('INVALID_STATE');
+  }
+  if (clone.treeNodes !== undefined && !Array.isArray(clone.treeNodes)) throw new Error('INVALID_STATE');
+
+  const defaults = defaultGameState(handle);
+  const state = {
+    ...defaults,
+    ...clone,
+    version: 1,
+    handle,
+    upgrades: { ...defaults.upgrades, ...(clone.upgrades || {}) },
+    jukebox: { ...defaults.jukebox, ...(clone.jukebox || {}) },
+    stats: { ...defaults.stats, ...(clone.stats || {}) },
+    treeNodes: clone.treeNodes ?? defaults.treeNodes
+  };
+  const nonNegativeNumber = value => typeof value === 'number' && Number.isFinite(value) && value >= 0;
+  if (!nonNegativeNumber(state.vibeScore) || !nonNegativeNumber(state.fragments) || !nonNegativeNumber(state.alloys)) {
+    throw new Error('INVALID_STATE');
+  }
+  for (const key of ['resonance', 'mining', 'efficiency']) {
+    if (!Number.isSafeInteger(state.upgrades[key]) || state.upgrades[key] < 1) throw new Error('INVALID_STATE');
+  }
+  if (typeof state.jukebox.unlocked !== 'boolean' || typeof state.jukebox.track !== 'string' || state.jukebox.track.length > 100) {
+    throw new Error('INVALID_STATE');
+  }
+  if (!state.treeNodes.every(node => typeof node === 'string' && node.length <= 128)) throw new Error('INVALID_STATE');
+  for (const key of ['sessions', 'fragmentsMined', 'alloysForged']) {
+    if (!nonNegativeNumber(state.stats[key])) throw new Error('INVALID_STATE');
+  }
+  return state;
 }
 
 async function handleApi(req, res, url) {
@@ -218,9 +271,8 @@ async function handleApi(req, res, url) {
 
   if (req.method === 'POST' && url.pathname === '/api/logout') {
     if (!originIsAllowed(req)) return sendJson(res, 403, { success: false, error: 'Ungültige Herkunft.' });
-    const cookies = req.headers.cookie || '';
-    const match = cookies.match(/(?:^|;\s*)vault_session=([^;]*)/);
-    if (match) revokeSession(decodeURIComponent(match[1]));
+    const token = parseCookies(req.headers.cookie || '').vault_session;
+    if (token) revokeSession(token);
     return sendJson(res, 200, { success: true }, { 'Set-Cookie': clearSessionCookie(PRODUCTION) });
   }
 

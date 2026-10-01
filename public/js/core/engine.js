@@ -62,7 +62,9 @@ export class GameEngine {
     document.querySelector('#saveButton').addEventListener('click', async () => {
       const button = document.querySelector('#saveButton');
       button.disabled = true;
-      await saveVaultState();
+      const saved = await saveVaultState();
+      button.textContent = saved ? 'GESPEICHERT' : 'FEHLER';
+      window.setTimeout(() => { button.textContent = 'SPEICHERN'; }, 2500);
       button.disabled = false;
     });
     document.querySelector('#logoutButton').addEventListener('click', async () => {
@@ -117,6 +119,7 @@ async function boot() {
   events.on('vault:error', () => {
     document.querySelector('#vaultStatus').textContent = 'VAULT FEHLER';
     document.querySelector('#vaultStatus').className = 'rounded-full px-3 py-2 bg-red-400/10 text-red-300 border border-red-400/20';
+    document.querySelector('#lastSaved').textContent = 'Speichern fehlgeschlagen. Bitte erneut versuchen.';
   });
 }
 

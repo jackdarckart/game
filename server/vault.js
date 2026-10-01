@@ -11,7 +11,7 @@ let vaultCache = null;
 let writeQueue = Promise.resolve();
 
 function ensureDataDir() {
-  mkdirSync(DATA_DIR, { recursive: true });
+  mkdirSync(DATA_DIR, { recursive: true, mode: 0o700 });
 }
 
 function getKey() {
